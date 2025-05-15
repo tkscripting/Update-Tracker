@@ -5,146 +5,18 @@
   <title>Secure Interactive Database</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css" />
   <style>
-    /* Neumorphic design basics */
-    body {
-      background: #ecf0f3;
-      color: #333;
-      font-family: 'Arial', sans-serif;
-      margin: 30px;
-    }
-    /* Auth section */
-    #authSection {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 20px;
-    }
-    #authSection input,
-    #authSection button {
-      background: #ecf0f3;
-      border: none;
-      border-radius: 10px;
-      box-shadow:  5px 5px 10px #bebebe,
-                  -5px -5px 10px #ffffff;
-      padding: 8px 12px;
-      margin-left: 10px;
-      outline: none;
-    }
-    /* Add Entry button */
-    #addEntryBtn {
-      background: #ecf0f3;
-      border: none;
-      border-radius: 12px;
-      box-shadow:  5px 5px 10px #bebebe,
-                  -5px -5px 10px #ffffff;
-      padding: 8px 16px;
-      cursor: pointer;
-    }
-    #addEntryBtn:active {
-      box-shadow: inset 5px 5px 10px #bebebe,
-                  inset -5px -5px 10px #ffffff;
-    }
-    /* DataTable filter container */
-    .dataTables_filter {
-      display: flex !important;
-      justify-content: flex-end;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .dataTables_filter input {
-      background: #ecf0f3;
-      border: none;
-      border-radius: 10px;
-      box-shadow: inset 5px 5px 10px #bebebe,
-                  inset -5px -5px 10px #ffffff;
-      padding: 6px 10px;
-      outline: none;
-      width: 200px;
-      margin-left: 10px;
-    }
-    /* Table styling */
-    table.display {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      background: #ecf0f3;
-      box-shadow:  5px 5px 10px #bebebe,
-                  -5px -5px 10px #ffffff;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    table.display th,
-    table.display td {
-      padding: 12px 15px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-    }
-    table.display thead {
-      background: #ecf0f3;
-      box-shadow: inset 2px 2px 5px #bebebe,
-                  inset -2px -2px 5px #ffffff;
-    }
-    /* Icons as flat SVG */
-    .edit-btn,
-    .remove-btn {
-      cursor: pointer;
-    }
-    .edit-btn svg,
-    .remove-btn svg {
-      width: 20px;
-      height: 20px;
-      fill: #555;
-    }
-    .remove-btn svg { fill: #e74c3c; }
+    body { font-family: Arial, sans-serif; margin: 30px; position: relative; }
+    #authSection { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+    #authSection input, #authSection button { margin-left: 10px; padding: 5px; }
+    .remove-btn { color: red; cursor: pointer; margin: 0 5px; }
+    .edit-btn { color: blue; cursor: pointer; margin: 0 5px; }
+    .requires-auth { display: none; }
+    #addEntryBtn { display: inline-block; margin-bottom: 10px; padding: 5px 10px; }
     /* Modal styles */
-    #modalOverlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.3);
-      backdrop-filter: blur(2px);
-      z-index: 10;
-    }
-    #modal {
-      background: #ecf0f3;
-      padding: 20px;
-      border-radius: 12px;
-      width: 400px;
-      max-width: 90%;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      box-shadow:  5px 5px 15px rgba(0,0,0,0.1),
-                  -5px -5px 15px rgba(255,255,255,0.7);
-      z-index: 11;
-    }
-    #modal input {
-      width: 100%;
-      margin-bottom: 15px;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 10px;
-      box-shadow: inset 5px 5px 10px #bebebe,
-                  inset -5px -5px 10px #ffffff;
-      outline: none;
-    }
-    #modal button {
-      background: #ecf0f3;
-      border: none;
-      border-radius: 10px;
-      box-shadow:  5px 5px 10px #bebebe,
-                  -5px -5px 10px #ffffff;
-      padding: 8px 16px;
-      cursor: pointer;
-      margin-right: 10px;
-    }
-    #modal button:active {
-      box-shadow: inset 5px 5px 10px #bebebe,
-                  inset -5px -5px 10px #ffffff;
-    }
+    #modalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    #modal { background: #fff; padding: 20px; border-radius: 8px; width: 400px; max-width: 90%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    #modal input { display: block; width: 100%; margin-bottom: 10px; padding: 5px; }
+    #modal button { margin-right: 10px; padding: 5px 10px; }
   </style>
 </head>
 <body>
@@ -159,22 +31,19 @@
     </form>
   </div>
 
-  <!-- DATA TABLE FILTER & ADD BUTTON -->
-  <div class="dataTables_filter">
-    <button id="addEntryBtn" class="requires-auth">Add Entry</button>
-    <label>Search: <input type="search"></label>
-  </div>
+  <!-- Add Entry Button -->
+  <button id="addEntryBtn" class="requires-auth">Add Entry</button>
 
-  <!-- DATA TABLE -->
-  <table id="dataTable" class="display">
+  <!-- DATA TABLE (no pagination, always visible) -->
+  <table id="dataTable" class="display" style="margin-top:10px; width:100%;">
     <thead>
       <tr>
         <th>Date</th>
         <th>Topic</th>
         <th>Description</th>
         <th>Link</th>
-        <th></th>
-        <th></th>
+        <th></th> <!-- Edit icon column header blank -->
+        <th></th> <!-- Remove icon column header blank -->
       </tr>
     </thead>
     <tbody></tbody>
@@ -194,12 +63,145 @@
     </div>
   </div>
 
-  <!-- JS -->
+  <!-- jQuery + DataTables -->
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-  <script>
+  <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+
+  <!-- Firebase Modular SDK -->
+  <script type="module">
+    import { initializeApp }        from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore,
+             collection,
+             addDoc,
+             onSnapshot,
+             query,
+             orderBy,
+             doc,
+             deleteDoc,
+             getDocs,
+             updateDoc }         from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getAuth,
+             signInWithEmailAndPassword,
+             onAuthStateChanged,
+             signOut }            from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCP0E5xBBzihujcQC4fmPblK-frZ3_wZiw",
+      authDomain: "updates-9255b.firebaseapp.com",
+      projectId: "updates-9255b",
+      storageBucket: "updates-9255b.firebasestorage.app",
+      messagingSenderId: "171550583463",
+      appId: "1:171550583463:web:c6c6ffdb410584a130c982",
+      measurementId: "G-39G2BNV0M3"
+    };
+    const app  = initializeApp(firebaseConfig);
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
+    const updatesCollection = collection(db, "updates");
+    const q = query(updatesCollection, orderBy("Date", "asc"));
+    let table; let editDocId = null;
+
+    async function updateCategoryList() {
+      const snap = await getDocs(updatesCollection);
+      const cats = new Set(); snap.forEach(d => { if (d.data().Topic) cats.add(d.data().Topic); });
+      const dl = document.getElementById('categories'); dl.innerHTML = '';
+      cats.forEach(c => { const opt = document.createElement('option'); opt.value = c; dl.appendChild(opt); });
+    }
+
+    function toggleAuthUI(isAuth) {
+      document.getElementById('logoutBtn').style.display = isAuth ? 'inline' : 'none';
+      document.getElementById('loginBtn').style.display  = isAuth ? 'none'  : 'inline';
+      $('.requires-auth').toggle(isAuth);
+      if (table) {
+        table.column(4).visible(isAuth);
+        table.column(5).visible(isAuth);
+      }
+    }
+
+    function openModal(edit = false, data = {}) {
+      editDocId = edit ? data.id : null;
+      $('#modalTitle').text(edit ? 'Edit Entry' : 'Add Entry');
+      $('#modalDate').val(data.Date || '');
+      $('#modalCategory').val(data.Topic || '');
+      $('#modalDescription').val(data.Description || '');
+      $('#modalLink').val(data.Link || '');
+      $('#modalOverlay').show();
+    }
+
+    function closeModal() { $('#modalOverlay').hide(); editDocId = null; }
+
     $(document).ready(function() {
-      // Move search input to custom filter
-      $('#dataTable_filter input').appendTo('.dataTables_filter label input').parent();
+      table = $('#dataTable').DataTable({
+        paging: false,
+        info: false,
+        lengthChange: false,
+        ordering: true,
+        columnDefs: [
+          { orderable: true,  targets: [0,1] },
+          { orderable: false, targets: [2,3,4,5] }
+        ],
+        columns: [
+          { data: 'Date' },
+          { data: 'Topic' },
+          { data: 'Description' },
+          { data: 'Link', render: d => d ? `<a href="${d}" target="_blank">View</a>` : '' },
+          { data: null, defaultContent: '<span class="edit-btn">📝</span>' },
+          { data: null, defaultContent: '<span class="remove-btn">🗑️</span>' }
+        ],
+        order: [[0, 'asc']]
+      });
+
+      onSnapshot(q, snap => {
+        table.clear();
+        snap.forEach(docSnap => {
+          const d = { ...docSnap.data(), id: docSnap.id };
+          table.row.add(d);
+        });
+        table.draw();
+        updateCategoryList();
+        toggleAuthUI(!!auth.currentUser);
+      });
+
+      $('#addEntryBtn').on('click', () => openModal());
+      $('#modalCancel').on('click', closeModal);
+      $('#modalSubmit').on('click', async () => {
+        const entry = {
+          Date: $('#modalDate').val(),
+          Topic: $('#modalCategory').val(),
+          Description: $('#modalDescription').val(),
+          Link: $('#modalLink').val() || ''
+        };
+        try {
+          if (editDocId) await updateDoc(doc(db, 'updates', editDocId), entry);
+          else await addDoc(updatesCollection, entry);
+        } catch (e) {
+          alert(e);
+        } finally {
+          closeModal();
+        }
+      });
+
+      $('#dataTable tbody').on('click', '.edit-btn', function() {
+        if (!auth.currentUser) return alert('Sign in to edit');
+        const data = table.row($(this).parents('tr')).data();
+        openModal(true, data);
+      });
+
+      $('#dataTable tbody').on('click', '.remove-btn', async function() {
+        if (!auth.currentUser) return alert('Sign in to remove');
+        const data = table.row($(this).parents('tr')).data();
+        try { await deleteDoc(doc(db, 'updates', data.id)); } catch (e) { alert(e); }
+      });
+
+      $('#loginForm').on('submit', async e => { e.preventDefault();
+        const email = $('#email').val(), pwd = $('#password').val();
+        if (!email.endsWith('@ynap.com')) return alert('Use @ynap.com');
+        try { await signInWithEmailAndPassword(auth, email, pwd); }
+        catch (e) { alert(e.message); }
+      });
+
+      $('#logoutBtn').on('click', () => signOut(auth));
+      onAuthStateChanged(auth, user => toggleAuthUI(!!user));
     });
   </script>
 </body>
