@@ -9,7 +9,8 @@
     #authSection { display: flex; justify-content: flex-end; margin-bottom: 20px; }
     #authSection input, #authSection button { margin-left: 10px; padding: 5px; }
     fieldset { border: none; padding: 0; margin-bottom: 20px; }
-    .remove-btn { color: red; cursor: pointer; }
+    .remove-btn, .edit-btn { color: blue; cursor: pointer; margin: 0 5px; }
+    .remove-btn { color: red; }
     .requires-auth { display: none; }
   </style>
 </head>
@@ -17,10 +18,12 @@
 
   <!-- INLINE LOGIN (moved right) -->
   <div id="authSection">
-    <input type="email" id="email" placeholder="you@ynap.com" />
-    <input type="password" id="password" placeholder="Password" />
-    <button id="loginBtn">Login</button>
-    <button id="logoutBtn" style="display:none;">Logout</button>
+    <form id="loginForm">
+      <input type="email" id="email" placeholder="you@ynap.com" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button type="submit" id="loginBtn">Login</button>
+      <button type="button" id="logoutBtn" style="display:none;">Logout</button>
+    </form>
   </div>
 
   <!-- ADD ENTRY FORM (hidden until auth) -->
@@ -31,7 +34,8 @@
       <datalist id="categories"></datalist>
       <input type="text" id="description" placeholder="Description" required />
       <input type="url" id="link" placeholder="Link" />
-      <button type="submit">Add Entry</button>
+      <button type="submit" id="submitBtn">Add Entry</button>
+      <button type="button" id="cancelEditBtn" style="display:none;">Cancel</button>
     </form>
   </fieldset>
 
@@ -43,6 +47,7 @@
         <th>Topic</th>
         <th>Description</th>
         <th>Link</th>
+        <th>Edit</th>
         <th>Remove</th>
       </tr>
     </thead>
@@ -64,7 +69,8 @@
              orderBy,
              doc,
              deleteDoc,
-             getDocs }           from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+             getDocs,
+             updateDoc }         from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth,
              signInWithEmailAndPassword,
              onAuthStateChanged,
@@ -90,6 +96,7 @@
     const updatesCollection = collection(db, "updates");
     const q = query(updatesCollection, orderBy("Date", "asc"));
     let table;
+    let editDocId = null;
 
     // Populate category datalist
     async function updateCategoryList() {
@@ -105,43 +112,38 @@
       });
     }
 
-    // Toggle form & remove‑column visibility
+    // Toggle form & column visibility
     function toggleAuthUI(isAuthed) {
       document.getElementById('formFieldset').style.display = isAuthed ? 'block' : 'none';
       document.getElementById('logoutBtn').style.display    = isAuthed ? 'inline' : 'none';
       document.getElementById('loginBtn').style.display     = isAuthed ? 'none'  : 'inline';
       if (table) {
         table.column(4).visible(isAuthed);
+        table.column(5).visible(isAuthed);
       }
     }
 
-    // Initialize DataTable and Firestore listener immediately
+    // Initialize DataTable and Firestore listener
     $(document).ready(function() {
+      // Setup table
       table = $('#dataTable').DataTable({
         columns: [
           { data: 'Date' },
-          { data: 'Topic', defaultContent: '' },
+          { data: 'Topic' },
           { data: 'Description' },
           { data: 'Link', render: d => d ? `<a href="${d}" target="_blank">View</a>` : '' },
-          { data: null,
-            defaultContent: '<span class="remove-btn">Remove</span>',
-            orderable: false }
+          { data: null, defaultContent: '<span class="edit-btn">Edit</span>', orderable: false },
+          { data: null, defaultContent: '<span class="remove-btn">Remove</span>', orderable: false }
         ],
         order: [[0, 'asc']]
       });
 
-      // Real‑time Firestore listener
+      // Real-time listener
       onSnapshot(q, snap => {
         table.clear();
         snap.forEach(docSnap => {
           const raw = docSnap.data();
-          const d = {
-            Date:        raw.Date,
-            Topic:       raw.Topic,
-            Description: raw.Description,
-            Link:        raw.Link,
-            id:          docSnap.id
-          };
+          const d = { ...raw, id: docSnap.id };
           table.row.add(d);
         });
         table.draw();
@@ -149,57 +151,80 @@
         toggleAuthUI(!!auth.currentUser);
       });
 
-      // Add entry
+      // Handle add/edit form submit
       $('#addForm').on('submit', async e => {
         e.preventDefault();
+        const entry = {
+          Date:        $('#date').val(),
+          Topic:       $('#category').val(),
+          Description: $('#description').val(),
+          Link:        $('#link').val() || ''
+        };
         try {
-          await addDoc(updatesCollection, {
-            Date:        $('#date').val(),
-            Topic:       $('#category').val(),
-            Description: $('#description').val(),
-            Link:        $('#link').val() || ''
-          });
+          if (editDocId) {
+            await updateDoc(doc(db, 'updates', editDocId), entry);
+            editDocId = null;
+            $('#submitBtn').text('Add Entry');
+            $('#cancelEditBtn').hide();
+          } else {
+            await addDoc(updatesCollection, entry);
+          }
           $('#addForm')[0].reset();
-          updateCategoryList();
         } catch(err) {
-          alert("Error adding entry: " + err);
+          alert('Error saving entry: ' + err);
         }
       });
 
-      // Remove entry
+      // Cancel edit
+      $('#cancelEditBtn').on('click', () => {
+        editDocId = null;
+        $('#submitBtn').text('Add Entry');
+        $('#cancelEditBtn').hide();
+        $('#addForm')[0].reset();
+      });
+
+      // Edit button
+      $('#dataTable tbody').on('click', '.edit-btn', function() {
+        if (!auth.currentUser) return alert('Please sign in to edit entries.');
+        const data = table.row($(this).parents('tr')).data();
+        editDocId = data.id;
+        $('#date').val(data.Date);
+        $('#category').val(data.Topic);
+        $('#description').val(data.Description);
+        $('#link').val(data.Link);
+        $('#submitBtn').text('Save Changes');
+        $('#cancelEditBtn').show();
+      });
+
+      // Remove button
       $('#dataTable tbody').on('click', '.remove-btn', async function() {
-        if (!auth.currentUser) return alert("Please sign in to remove entries.");
-        const rowData = table.row($(this).parents('tr')).data();
+        if (!auth.currentUser) return alert('Please sign in to remove entries.');
+        const data = table.row($(this).parents('tr')).data();
         try {
-          await deleteDoc(doc(db, "updates", rowData.id));
+          await deleteDoc(doc(db, 'updates', data.id));
         } catch(err) {
-          alert("Error removing entry: " + err);
+          alert('Error removing entry: ' + err);
         }
       });
 
-      // Login handler
-      document.getElementById('loginBtn').addEventListener('click', async () => {
-        const email = document.getElementById('email').value;
-        const pwd   = document.getElementById('password').value;
-        if (!email.endsWith('@ynap.com')) {
-          return alert("Please use your @ynap.com email.");
-        }
+      // Login via form submit (Enter key)
+      $('#loginForm').on('submit', async e => {
+        e.preventDefault();
+        const email = $('#email').val();
+        const pwd   = $('#password').val();
+        if (!email.endsWith('@ynap.com')) return alert('Please use your @ynap.com email.');
         try {
           await signInWithEmailAndPassword(auth, email, pwd);
         } catch(err) {
-          alert("Login failed: " + err.message);
+          alert('Login failed: ' + err.message);
         }
       });
 
-      // Logout handler
-      document.getElementById('logoutBtn').addEventListener('click', () => {
-        signOut(auth);
-      });
+      // Logout
+      $('#logoutBtn').on('click', () => signOut(auth));
 
-      // React immediately on auth‑state changes
-      onAuthStateChanged(auth, user => {
-        toggleAuthUI(!!user);
-      });
+      // Auth state listener
+      onAuthStateChanged(auth, user => toggleAuthUI(!!user));
     });
   </script>
 </body>
