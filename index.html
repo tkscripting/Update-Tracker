@@ -23,7 +23,7 @@
     <button id="logoutBtn" style="display:none;">Logout</button>
   </div>
 
-  <!-- ADD ENTRY FORM (wrapped in disabled fieldset until auth) -->
+  <!-- ADD ENTRY FORM (disabled until auth) -->
   <fieldset id="formFieldset" disabled>
     <form id="addForm">
       <input type="date" id="date" required />
@@ -35,7 +35,7 @@
     </form>
   </fieldset>
 
-  <!-- DATA TABLE -->
+  <!-- DATA TABLE (always visible) -->
   <table id="dataTable" class="display" style="margin-top:20px;">
     <thead>
       <tr>
@@ -70,7 +70,7 @@
              onAuthStateChanged,
              signOut }            from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
-    // ——— Your Firebase config ———
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyCP0E5xBBzihujcQC4fmPblK-frZ3_wZiw",
       authDomain: "updates-9255b.firebaseapp.com",
@@ -91,7 +91,7 @@
     const q = query(updatesCollection, orderBy("Date", "asc"));
     let table;
 
-    // Populate category suggestions
+    // Populate category datalist
     async function updateCategoryList() {
       const snap = await getDocs(updatesCollection);
       const cats = new Set();
@@ -105,8 +105,17 @@
       });
     }
 
-    // Setup DataTable + real-time listener
-    function initializeFirestoreListeners() {
+    // Toggle form + remove-button visibility based on auth
+    function toggleAuthUI(isAuthed) {
+      document.getElementById('formFieldset').disabled = !isAuthed;
+      document.querySelectorAll('.requires-auth')
+              .forEach(el => el.style.display = isAuthed ? 'inline' : 'none');
+      document.getElementById('logoutBtn').style.display = isAuthed ? 'inline' : 'none';
+      document.getElementById('loginBtn').style.display  = isAuthed ? 'none'  : 'inline';
+    }
+
+    // Initialize DataTable and Firestore listener immediately
+    $(document).ready(function() {
       table = $('#dataTable').DataTable({
         columns: [
           { data: 'Date' },
@@ -130,7 +139,7 @@
         });
         table.draw();
         updateCategoryList();
-        toggleAuthUI(auth.currentUser != null);
+        toggleAuthUI(!!auth.currentUser);
       });
 
       // Add entry
@@ -160,40 +169,30 @@
           alert("Error removing entry: " + err);
         }
       });
-    }
 
-    // Enable/disable form & remove buttons based on auth
-    function toggleAuthUI(isAuthed) {
-      document.getElementById('formFieldset').disabled = !isAuthed;
-      document.querySelectorAll('.requires-auth')
-              .forEach(el => el.style.display = isAuthed ? 'inline' : 'none');
-      document.getElementById('logoutBtn').style.display = isAuthed ? 'inline' : 'none';
-      document.getElementById('loginBtn').style.display  = isAuthed ? 'none'  : 'inline';
-    }
+      // Login handler
+      document.getElementById('loginBtn').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const pwd   = document.getElementById('password').value;
+        if (!email.endsWith('@ynap.com')) {
+          return alert("Please use your @ynap.com email.");
+        }
+        try {
+          await signInWithEmailAndPassword(auth, email, pwd);
+        } catch(err) {
+          alert("Login failed: " + err.message);
+        }
+      });
 
-    // Watch auth state
-    onAuthStateChanged(auth, user => {
-      toggleAuthUI(!!user);
-      if (!table) initializeFirestoreListeners();
-    });
+      // Logout handler
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        signOut(auth);
+      });
 
-    // Login handler
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('email').value;
-      const pwd   = document.getElementById('password').value;
-      if (!email.endsWith('@ynap.com')) {
-        return alert("Please use your @ynap.com email.");
-      }
-      try {
-        await signInWithEmailAndPassword(auth, email, pwd);
-      } catch(err) {
-        alert("Login failed: " + err.message);
-      }
-    });
-
-    // Logout handler
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      signOut(auth);
+      // React immediately when auth state changes
+      onAuthStateChanged(auth, user => {
+        toggleAuthUI(!!user);
+      });
     });
   </script>
 </body>
