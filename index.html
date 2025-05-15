@@ -8,10 +8,10 @@
     body { font-family: Arial, sans-serif; margin: 30px; position: relative; }
     #authSection { display: flex; justify-content: flex-end; margin-bottom: 20px; }
     #authSection input, #authSection button { margin-left: 10px; padding: 5px; }
-    .remove-btn, .edit-btn { color: blue; cursor: pointer; margin: 0 5px; }
-    .remove-btn { color: red; }
+    .remove-btn { color: red; cursor: pointer; margin: 0 5px; }
+    .edit-btn { color: blue; cursor: pointer; margin: 0 5px; }
     .requires-auth { display: none; }
-    #addBtn { font-size: 24px; cursor: pointer; position: absolute; top: 80px; right: 30px; }
+    #addEntryBtn { display: inline-block; margin-bottom: 10px; padding: 5px 10px; }
     /* Modal styles */
     #modalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
     #modal { background: #fff; padding: 20px; border-radius: 8px; width: 400px; max-width: 90%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
@@ -31,19 +31,19 @@
     </form>
   </div>
 
-  <!-- Add Icon Button (visible when auth) -->
-  <div id="addBtn" class="requires-auth">＋</div>
+  <!-- Add Entry Button -->
+  <button id="addEntryBtn" class="requires-auth">Add Entry</button>
 
-  <!-- DATA TABLE -->
-  <table id="dataTable" class="display" style="margin-top:20px; width:100%;">
+  <!-- DATA TABLE (no pagination, always visible) -->
+  <table id="dataTable" class="display" style="margin-top:10px; width:100%;">
     <thead>
       <tr>
         <th>Date</th>
         <th>Topic</th>
         <th>Description</th>
         <th>Link</th>
-        <th>Edit</th>
-        <th>Remove</th>
+        <th></th> <!-- Edit icon column header blank -->
+        <th></th> <!-- Remove icon column header blank -->
       </tr>
     </thead>
     <tbody></tbody>
@@ -109,48 +109,99 @@
     }
 
     function toggleAuthUI(isAuth) {
-      document.getElementById('logoutBtn').style.display = isAuth ? 'inline':'none';
-      document.getElementById('loginBtn').style.display  = isAuth ? 'none':'inline';
+      document.getElementById('logoutBtn').style.display = isAuth ? 'inline' : 'none';
+      document.getElementById('loginBtn').style.display  = isAuth ? 'none'  : 'inline';
       $('.requires-auth').toggle(isAuth);
-      if(table) table.column(4).visible(isAuth), table.column(5).visible(isAuth);
+      if (table) {
+        table.column(4).visible(isAuth);
+        table.column(5).visible(isAuth);
+      }
     }
 
-    function openModal(edit=false, data={}) {
+    function openModal(edit = false, data = {}) {
       editDocId = edit ? data.id : null;
-      $('#modalTitle').text(edit?'Edit Entry':'Add Entry');
-      $('#modalDate').val(data.Date||'');
-      $('#modalCategory').val(data.Topic||'');
-      $('#modalDescription').val(data.Description||'');
-      $('#modalLink').val(data.Link||'');
+      $('#modalTitle').text(edit ? 'Edit Entry' : 'Add Entry');
+      $('#modalDate').val(data.Date || '');
+      $('#modalCategory').val(data.Topic || '');
+      $('#modalDescription').val(data.Description || '');
+      $('#modalLink').val(data.Link || '');
       $('#modalOverlay').show();
     }
 
-    function closeModal() { $('#modalOverlay').hide(); editDocId=null; }
+    function closeModal() { $('#modalOverlay').hide(); editDocId = null; }
 
-    $(document).ready(function(){
-      table = $('#dataTable').DataTable({columns:[
-        {data:'Date'},{data:'Topic'},{data:'Description'},{data:'Link',render:d=>d?`<a href="${d}" target="_blank">View</a>`:''},
-        {data:null,defaultContent:'<span class="edit-btn">Edit</span>',orderable:false},
-        {data:null,defaultContent:'<span class="remove-btn">Remove</span>',orderable:false}],order:[[0,'asc']]});
-
-      onSnapshot(q,snap=>{table.clear();snap.forEach(docSnap=>{const d={...docSnap.data(),id:docSnap.id};table.row.add(d);});table.draw();updateCategoryList();toggleAuthUI(!!auth.currentUser);});
-
-      // Add button
-      $('#addBtn').on('click',()=>openModal());
-      $('#modalCancel').on('click',closeModal);
-      $('#modalSubmit').on('click',async()=>{
-        const entry={Date:$('#modalDate').val(),Topic:$('#modalCategory').val(),Description:$('#modalDescription').val(),Link:$('#modalLink').val()||''};
-        try{ if(editDocId) await updateDoc(doc(db,'updates',editDocId),entry); else await addDoc(updatesCollection,entry);}catch(e){alert(e);}finally{closeModal();}
+    $(document).ready(function() {
+      table = $('#dataTable').DataTable({
+        paging: false,
+        info: false,
+        lengthChange: false,
+        ordering: true,
+        columnDefs: [
+          { orderable: true,  targets: [0,1] },
+          { orderable: false, targets: [2,3,4,5] }
+        ],
+        columns: [
+          { data: 'Date' },
+          { data: 'Topic' },
+          { data: 'Description' },
+          { data: 'Link', render: d => d ? `<a href="${d}" target="_blank">View</a>` : '' },
+          { data: null, defaultContent: '<span class="edit-btn">📝</span>' },
+          { data: null, defaultContent: '<span class="remove-btn">🗑️</span>' }
+        ],
+        order: [[0, 'asc']]
       });
 
-      // Table actions
-      $('#dataTable tbody').on('click','.edit-btn',function(){ if(!auth.currentUser) return alert('Sign in to edit'); const d=table.row($(this).parents('tr')).data(); openModal(true,d); });
-      $('#dataTable tbody').on('click','.remove-btn',async function(){ if(!auth.currentUser) return alert('Sign in to remove'); const d=table.row($(this).parents('tr')).data(); try{await deleteDoc(doc(db,'updates',d.id));}catch(e){alert(e);} });
+      onSnapshot(q, snap => {
+        table.clear();
+        snap.forEach(docSnap => {
+          const d = { ...docSnap.data(), id: docSnap.id };
+          table.row.add(d);
+        });
+        table.draw();
+        updateCategoryList();
+        toggleAuthUI(!!auth.currentUser);
+      });
 
-      // Auth
-      $('#loginForm').on('submit',async e=>{e.preventDefault();const email=$('#email').val(),pwd=$('#password').val();if(!email.endsWith('@ynap.com'))return alert('Use @ynap.com');try{await signInWithEmailAndPassword(auth,email,pwd);}catch(e){alert(e.message);} });
-      $('#logoutBtn').on('click',()=>signOut(auth));
-      onAuthStateChanged(auth,user=>toggleAuthUI(!!user));
+      $('#addEntryBtn').on('click', () => openModal());
+      $('#modalCancel').on('click', closeModal);
+      $('#modalSubmit').on('click', async () => {
+        const entry = {
+          Date: $('#modalDate').val(),
+          Topic: $('#modalCategory').val(),
+          Description: $('#modalDescription').val(),
+          Link: $('#modalLink').val() || ''
+        };
+        try {
+          if (editDocId) await updateDoc(doc(db, 'updates', editDocId), entry);
+          else await addDoc(updatesCollection, entry);
+        } catch (e) {
+          alert(e);
+        } finally {
+          closeModal();
+        }
+      });
+
+      $('#dataTable tbody').on('click', '.edit-btn', function() {
+        if (!auth.currentUser) return alert('Sign in to edit');
+        const data = table.row($(this).parents('tr')).data();
+        openModal(true, data);
+      });
+
+      $('#dataTable tbody').on('click', '.remove-btn', async function() {
+        if (!auth.currentUser) return alert('Sign in to remove');
+        const data = table.row($(this).parents('tr')).data();
+        try { await deleteDoc(doc(db, 'updates', data.id)); } catch (e) { alert(e); }
+      });
+
+      $('#loginForm').on('submit', async e => { e.preventDefault();
+        const email = $('#email').val(), pwd = $('#password').val();
+        if (!email.endsWith('@ynap.com')) return alert('Use @ynap.com');
+        try { await signInWithEmailAndPassword(auth, email, pwd); }
+        catch (e) { alert(e.message); }
+      });
+
+      $('#logoutBtn').on('click', () => signOut(auth));
+      onAuthStateChanged(auth, user => toggleAuthUI(!!user));
     });
   </script>
 </body>
