@@ -10,7 +10,6 @@
     #authSection input, #authSection button { margin-right: 10px; padding: 5px; }
     fieldset { border: none; padding: 0; }
     .remove-btn { color: red; cursor: pointer; }
-    .requires-auth { display: none; }
   </style>
 </head>
 <body>
@@ -105,13 +104,17 @@
       });
     }
 
-    // Toggle form + remove-button visibility based on auth
+    // Toggle form & remove‑column visibility
     function toggleAuthUI(isAuthed) {
+      // Enable/disable add form
       document.getElementById('formFieldset').disabled = !isAuthed;
-      document.querySelectorAll('.requires-auth')
-              .forEach(el => el.style.display = isAuthed ? 'inline' : 'none');
+      // Show/hide login/logout buttons
       document.getElementById('logoutBtn').style.display = isAuthed ? 'inline' : 'none';
       document.getElementById('loginBtn').style.display  = isAuthed ? 'none'  : 'inline';
+      // Show/hide the "Remove" column
+      if (table) {
+        table.column(4).visible(isAuthed);
+      }
     }
 
     // Initialize DataTable and Firestore listener immediately
@@ -124,21 +127,22 @@
           { data: 'PowerPoint',
             render: d => `<a href="${d}" target="_blank">View</a>` },
           { data: null,
-            defaultContent: '<span class="remove-btn requires-auth">Remove</span>',
+            defaultContent: '<span class="remove-btn">Remove</span>',
             orderable: false }
         ],
         order: [[0, 'asc']]
       });
 
+      // Real‑time Firestore listener
       onSnapshot(q, snap => {
         table.clear();
         snap.forEach(docSnap => {
-          const d = docSnap.data();
-          d.id = docSnap.id;
+          const d = docSnap.data(); d.id = docSnap.id;
           table.row.add(d);
         });
         table.draw();
         updateCategoryList();
+        // Reflect current auth state
         toggleAuthUI(!!auth.currentUser);
       });
 
@@ -189,7 +193,7 @@
         signOut(auth);
       });
 
-      // React immediately when auth state changes
+      // React immediately on auth‑state changes
       onAuthStateChanged(auth, user => {
         toggleAuthUI(!!user);
       });
