@@ -8,7 +8,7 @@
     body { font-family: Arial, sans-serif; margin: 30px; }
     table { width: 100%; }
     form { margin-bottom: 20px; }
-    input, select { margin-right: 10px; padding: 5px; }
+    input, button { margin-right: 10px; padding: 5px; }
     .remove-btn { color: red; cursor: pointer; }
   </style>
 </head>
@@ -18,13 +18,8 @@
 
   <form id="addForm">
     <input type="date" id="date" required />
-    <select id="category" required>
-      <option value="">Select Category</option>
-      <option>Marketing</option>
-      <option>Tech Update</option>
-      <option>Finance</option>
-      <option>HR</option>
-    </select>
+    <input list="categories" id="category" placeholder="Category" required />
+    <datalist id="categories"></datalist>
     <input type="text" id="description" placeholder="Description" required />
     <input type="url" id="link" placeholder="PowerPoint Link" required />
     <button type="submit">Add Entry</button>
@@ -50,9 +45,19 @@
   <!-- Firebase Modular SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      onSnapshot,
+      query,
+      orderBy,
+      doc,
+      deleteDoc,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-    // Your Firebase config (from your snippet)
+    // Your Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyCP0E5xBBzihujcQC4fmPblK-frZ3_wZiw",
       authDomain: "updates-9255b.firebaseapp.com",
@@ -68,14 +73,34 @@
     const db = getFirestore(app);
 
     let table;
+    const updatesCollection = collection(db, "updates");
+    const q = query(updatesCollection, orderBy("Date", "asc"));
+
+    // Populate the datalist with unique categories from Firestore
+    async function updateCategoryList() {
+      const snapshot = await getDocs(updatesCollection);
+      const categoriesSet = new Set();
+      snapshot.forEach(docSnap => {
+        const cat = docSnap.data().Category;
+        if (cat) categoriesSet.add(cat);
+      });
+      const datalist = document.getElementById('categories');
+      datalist.innerHTML = '';
+      categoriesSet.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        datalist.appendChild(option);
+      });
+    }
 
     $(document).ready(function() {
+      // Initialize DataTable
       table = $('#dataTable').DataTable({
         columns: [
           { data: 'Date' },
           { data: 'Category' },
           { data: 'Description' },
-          { 
+          {
             data: 'PowerPoint',
             render: data => `<a href="${data}" target="_blank">View</a>`
           },
@@ -88,10 +113,7 @@
         order: [[0, 'asc']]
       });
 
-      const updatesCollection = collection(db, "updates");
-      const q = query(updatesCollection, orderBy("Date", "asc"));
-
-      // Listen to Firestore changes in real time
+      // Real-time listener: update table & categories on any change
       onSnapshot(q, (snapshot) => {
         table.clear();
         snapshot.forEach(docSnap => {
@@ -100,9 +122,10 @@
           table.row.add(data);
         });
         table.draw();
+        updateCategoryList();
       });
 
-      // Add entry
+      // Add new entry
       $('#addForm').on('submit', async function(e) {
         e.preventDefault();
         try {
@@ -113,6 +136,7 @@
             PowerPoint: $('#link').val()
           });
           this.reset();
+          updateCategoryList();
         } catch (err) {
           alert("Error adding entry: " + err);
         }
