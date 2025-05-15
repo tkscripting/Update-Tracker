@@ -6,15 +6,16 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css" />
   <style>
     body { font-family: Arial, sans-serif; margin: 30px; }
-    #authSection { margin-bottom: 20px; }
-    #authSection input, #authSection button { margin-right: 10px; padding: 5px; }
-    fieldset { border: none; padding: 0; }
+    #authSection { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+    #authSection input, #authSection button { margin-left: 10px; padding: 5px; }
+    fieldset { border: none; padding: 0; margin-bottom: 20px; }
     .remove-btn { color: red; cursor: pointer; }
+    .requires-auth { display: none; }
   </style>
 </head>
 <body>
 
-  <!-- INLINE LOGIN -->
+  <!-- INLINE LOGIN (moved right) -->
   <div id="authSection">
     <input type="email" id="email" placeholder="you@ynap.com" />
     <input type="password" id="password" placeholder="Password" />
@@ -22,26 +23,26 @@
     <button id="logoutBtn" style="display:none;">Logout</button>
   </div>
 
-  <!-- ADD ENTRY FORM (disabled until auth) -->
-  <fieldset id="formFieldset" disabled>
+  <!-- ADD ENTRY FORM (hidden until auth) -->
+  <fieldset id="formFieldset" class="requires-auth">
     <form id="addForm">
       <input type="date" id="date" required />
-      <input list="categories" id="category" placeholder="Category" required />
+      <input list="categories" id="category" placeholder="Topic" required />
       <datalist id="categories"></datalist>
       <input type="text" id="description" placeholder="Description" required />
-      <input type="url" id="link" placeholder="PowerPoint Link" required />
+      <input type="url" id="link" placeholder="Link" />
       <button type="submit">Add Entry</button>
     </form>
   </fieldset>
 
   <!-- DATA TABLE (always visible) -->
-  <table id="dataTable" class="display" style="margin-top:20px;">
+  <table id="dataTable" class="display" style="margin-top:20px; width:100%;">
     <thead>
       <tr>
         <th>Date</th>
-        <th>Category</th>
+        <th>Topic</th>
         <th>Description</th>
-        <th>PowerPoint</th>
+        <th>Link</th>
         <th>Remove</th>
       </tr>
     </thead>
@@ -94,7 +95,7 @@
     async function updateCategoryList() {
       const snap = await getDocs(updatesCollection);
       const cats = new Set();
-      snap.forEach(d => { if (d.data().Category) cats.add(d.data().Category); });
+      snap.forEach(d => { if (d.data().Topic) cats.add(d.data().Topic); });
       const dl = document.getElementById('categories');
       dl.innerHTML = '';
       cats.forEach(c => {
@@ -106,12 +107,9 @@
 
     // Toggle form & remove‑column visibility
     function toggleAuthUI(isAuthed) {
-      // Enable/disable add form
-      document.getElementById('formFieldset').disabled = !isAuthed;
-      // Show/hide login/logout buttons
-      document.getElementById('logoutBtn').style.display = isAuthed ? 'inline' : 'none';
-      document.getElementById('loginBtn').style.display  = isAuthed ? 'none'  : 'inline';
-      // Show/hide the "Remove" column
+      document.getElementById('formFieldset').style.display = isAuthed ? 'block' : 'none';
+      document.getElementById('logoutBtn').style.display    = isAuthed ? 'inline' : 'none';
+      document.getElementById('loginBtn').style.display     = isAuthed ? 'none'  : 'inline';
       if (table) {
         table.column(4).visible(isAuthed);
       }
@@ -122,10 +120,9 @@
       table = $('#dataTable').DataTable({
         columns: [
           { data: 'Date' },
-          { data: 'Category' },
+          { data: 'Topic', defaultContent: '' },
           { data: 'Description' },
-          { data: 'PowerPoint',
-            render: d => `<a href="${d}" target="_blank">View</a>` },
+          { data: 'Link', render: d => d ? `<a href="${d}" target="_blank">View</a>` : '' },
           { data: null,
             defaultContent: '<span class="remove-btn">Remove</span>',
             orderable: false }
@@ -137,12 +134,18 @@
       onSnapshot(q, snap => {
         table.clear();
         snap.forEach(docSnap => {
-          const d = docSnap.data(); d.id = docSnap.id;
+          const raw = docSnap.data();
+          const d = {
+            Date:        raw.Date,
+            Topic:       raw.Topic,
+            Description: raw.Description,
+            Link:        raw.Link,
+            id:          docSnap.id
+          };
           table.row.add(d);
         });
         table.draw();
         updateCategoryList();
-        // Reflect current auth state
         toggleAuthUI(!!auth.currentUser);
       });
 
@@ -152,9 +155,9 @@
         try {
           await addDoc(updatesCollection, {
             Date:        $('#date').val(),
-            Category:    $('#category').val(),
+            Topic:       $('#category').val(),
             Description: $('#description').val(),
-            PowerPoint:  $('#link').val()
+            Link:        $('#link').val() || ''
           });
           $('#addForm')[0].reset();
           updateCategoryList();
