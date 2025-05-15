@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Firebase Modular SDK Interactive Database</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; }
+    table { width: 100%; }
+    form { margin-bottom: 20px; }
+    input, select { margin-right: 10px; padding: 5px; }
+    .remove-btn { color: red; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <h2>Interactive Database (Firebase Firestore Modular SDK)</h2>
+
+  <form id="addForm">
+    <input type="date" id="date" required />
+    <select id="category" required>
+      <option value="">Select Category</option>
+      <option>Marketing</option>
+      <option>Tech Update</option>
+      <option>Finance</option>
+      <option>HR</option>
+    </select>
+    <input type="text" id="description" placeholder="Description" required />
+    <input type="url" id="link" placeholder="PowerPoint Link" required />
+    <button type="submit">Add Entry</button>
+  </form>
+
+  <table id="dataTable" class="display">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Category</th>
+        <th>Description</th>
+        <th>PowerPoint</th>
+        <th>Remove</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- jQuery + DataTables JS -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+
+  <!-- Firebase Modular SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    // Your Firebase config (from your snippet)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCP0E5xBBzihujcQC4fmPblK-frZ3_wZiw",
+      authDomain: "updates-9255b.firebaseapp.com",
+      projectId: "updates-9255b",
+      storageBucket: "updates-9255b.firebasestorage.app",
+      messagingSenderId: "171550583463",
+      appId: "1:171550583463:web:c6c6ffdb410584a130c982",
+      measurementId: "G-39G2BNV0M3"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let table;
+
+    $(document).ready(function() {
+      table = $('#dataTable').DataTable({
+        columns: [
+          { data: 'Date' },
+          { data: 'Category' },
+          { data: 'Description' },
+          { 
+            data: 'PowerPoint',
+            render: data => `<a href="${data}" target="_blank">View</a>`
+          },
+          {
+            data: null,
+            defaultContent: '<span class="remove-btn">Remove</span>',
+            orderable: false
+          }
+        ],
+        order: [[0, 'asc']]
+      });
+
+      const updatesCollection = collection(db, "updates");
+      const q = query(updatesCollection, orderBy("Date", "asc"));
+
+      // Listen to Firestore changes in real time
+      onSnapshot(q, (snapshot) => {
+        table.clear();
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          data.id = docSnap.id;
+          table.row.add(data);
+        });
+        table.draw();
+      });
+
+      // Add entry
+      $('#addForm').on('submit', async function(e) {
+        e.preventDefault();
+        try {
+          await addDoc(updatesCollection, {
+            Date: $('#date').val(),
+            Category: $('#category').val(),
+            Description: $('#description').val(),
+            PowerPoint: $('#link').val()
+          });
+          this.reset();
+        } catch (err) {
+          alert("Error adding entry: " + err);
+        }
+      });
+
+      // Remove entry
+      $('#dataTable tbody').on('click', '.remove-btn', async function() {
+        const row = table.row($(this).parents('tr'));
+        const data = row.data();
+        if (data.id) {
+          try {
+            await deleteDoc(doc(db, "updates", data.id));
+          } catch (err) {
+            alert("Error removing entry: " + err);
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
