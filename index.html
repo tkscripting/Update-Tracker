@@ -5,18 +5,23 @@
   <title>Secure Interactive Database</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css" />
   <style>
-    body { font-family: Arial, sans-serif; margin: 30px; }
+    body { font-family: Arial, sans-serif; margin: 30px; position: relative; }
     #authSection { display: flex; justify-content: flex-end; margin-bottom: 20px; }
     #authSection input, #authSection button { margin-left: 10px; padding: 5px; }
-    fieldset { border: none; padding: 0; margin-bottom: 20px; }
     .remove-btn, .edit-btn { color: blue; cursor: pointer; margin: 0 5px; }
     .remove-btn { color: red; }
     .requires-auth { display: none; }
+    #addBtn { font-size: 24px; cursor: pointer; position: absolute; top: 80px; right: 30px; }
+    /* Modal styles */
+    #modalOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    #modal { background: #fff; padding: 20px; border-radius: 8px; width: 400px; max-width: 90%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    #modal input { display: block; width: 100%; margin-bottom: 10px; padding: 5px; }
+    #modal button { margin-right: 10px; padding: 5px 10px; }
   </style>
 </head>
 <body>
 
-  <!-- INLINE LOGIN (moved right) -->
+  <!-- INLINE LOGIN -->
   <div id="authSection">
     <form id="loginForm">
       <input type="email" id="email" placeholder="you@ynap.com" required />
@@ -26,20 +31,10 @@
     </form>
   </div>
 
-  <!-- ADD ENTRY FORM (hidden until auth) -->
-  <fieldset id="formFieldset" class="requires-auth">
-    <form id="addForm">
-      <input type="date" id="date" required />
-      <input list="categories" id="category" placeholder="Topic" required />
-      <datalist id="categories"></datalist>
-      <input type="text" id="description" placeholder="Description" required />
-      <input type="url" id="link" placeholder="Link" />
-      <button type="submit" id="submitBtn">Add Entry</button>
-      <button type="button" id="cancelEditBtn" style="display:none;">Cancel</button>
-    </form>
-  </fieldset>
+  <!-- Add Icon Button (visible when auth) -->
+  <div id="addBtn" class="requires-auth">＋</div>
 
-  <!-- DATA TABLE (always visible) -->
+  <!-- DATA TABLE -->
   <table id="dataTable" class="display" style="margin-top:20px; width:100%;">
     <thead>
       <tr>
@@ -53,6 +48,20 @@
     </thead>
     <tbody></tbody>
   </table>
+
+  <!-- Modal for Add/Edit -->
+  <div id="modalOverlay">
+    <div id="modal">
+      <h3 id="modalTitle">Add Entry</h3>
+      <input type="date" id="modalDate" required />
+      <input list="categories" id="modalCategory" placeholder="Topic" required />
+      <datalist id="categories"></datalist>
+      <input type="text" id="modalDescription" placeholder="Description" required />
+      <input type="url" id="modalLink" placeholder="Link" />
+      <button id="modalSubmit">Submit</button>
+      <button id="modalCancel">Cancel</button>
+    </div>
+  </div>
 
   <!-- jQuery + DataTables -->
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
@@ -76,7 +85,6 @@
              onAuthStateChanged,
              signOut }            from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyCP0E5xBBzihujcQC4fmPblK-frZ3_wZiw",
       authDomain: "updates-9255b.firebaseapp.com",
@@ -86,145 +94,63 @@
       appId: "1:171550583463:web:c6c6ffdb410584a130c982",
       measurementId: "G-39G2BNV0M3"
     };
-
-    // Initialize Firebase
     const app  = initializeApp(firebaseConfig);
     const db   = getFirestore(app);
     const auth = getAuth(app);
-
-    // Firestore collection & query
     const updatesCollection = collection(db, "updates");
     const q = query(updatesCollection, orderBy("Date", "asc"));
-    let table;
-    let editDocId = null;
+    let table; let editDocId = null;
 
-    // Populate category datalist
     async function updateCategoryList() {
       const snap = await getDocs(updatesCollection);
-      const cats = new Set();
-      snap.forEach(d => { if (d.data().Topic) cats.add(d.data().Topic); });
-      const dl = document.getElementById('categories');
-      dl.innerHTML = '';
-      cats.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        dl.appendChild(opt);
-      });
+      const cats = new Set(); snap.forEach(d => { if (d.data().Topic) cats.add(d.data().Topic); });
+      const dl = document.getElementById('categories'); dl.innerHTML = '';
+      cats.forEach(c => { const opt = document.createElement('option'); opt.value = c; dl.appendChild(opt); });
     }
 
-    // Toggle form & column visibility
-    function toggleAuthUI(isAuthed) {
-      document.getElementById('formFieldset').style.display = isAuthed ? 'block' : 'none';
-      document.getElementById('logoutBtn').style.display    = isAuthed ? 'inline' : 'none';
-      document.getElementById('loginBtn').style.display     = isAuthed ? 'none'  : 'inline';
-      if (table) {
-        table.column(4).visible(isAuthed);
-        table.column(5).visible(isAuthed);
-      }
+    function toggleAuthUI(isAuth) {
+      document.getElementById('logoutBtn').style.display = isAuth ? 'inline':'none';
+      document.getElementById('loginBtn').style.display  = isAuth ? 'none':'inline';
+      $('.requires-auth').toggle(isAuth);
+      if(table) table.column(4).visible(isAuth), table.column(5).visible(isAuth);
     }
 
-    // Initialize DataTable and Firestore listener
-    $(document).ready(function() {
-      // Setup table
-      table = $('#dataTable').DataTable({
-        columns: [
-          { data: 'Date' },
-          { data: 'Topic' },
-          { data: 'Description' },
-          { data: 'Link', render: d => d ? `<a href="${d}" target="_blank">View</a>` : '' },
-          { data: null, defaultContent: '<span class="edit-btn">Edit</span>', orderable: false },
-          { data: null, defaultContent: '<span class="remove-btn">Remove</span>', orderable: false }
-        ],
-        order: [[0, 'asc']]
+    function openModal(edit=false, data={}) {
+      editDocId = edit ? data.id : null;
+      $('#modalTitle').text(edit?'Edit Entry':'Add Entry');
+      $('#modalDate').val(data.Date||'');
+      $('#modalCategory').val(data.Topic||'');
+      $('#modalDescription').val(data.Description||'');
+      $('#modalLink').val(data.Link||'');
+      $('#modalOverlay').show();
+    }
+
+    function closeModal() { $('#modalOverlay').hide(); editDocId=null; }
+
+    $(document).ready(function(){
+      table = $('#dataTable').DataTable({columns:[
+        {data:'Date'},{data:'Topic'},{data:'Description'},{data:'Link',render:d=>d?`<a href="${d}" target="_blank">View</a>`:''},
+        {data:null,defaultContent:'<span class="edit-btn">Edit</span>',orderable:false},
+        {data:null,defaultContent:'<span class="remove-btn">Remove</span>',orderable:false}],order:[[0,'asc']]});
+
+      onSnapshot(q,snap=>{table.clear();snap.forEach(docSnap=>{const d={...docSnap.data(),id:docSnap.id};table.row.add(d);});table.draw();updateCategoryList();toggleAuthUI(!!auth.currentUser);});
+
+      // Add button
+      $('#addBtn').on('click',()=>openModal());
+      $('#modalCancel').on('click',closeModal);
+      $('#modalSubmit').on('click',async()=>{
+        const entry={Date:$('#modalDate').val(),Topic:$('#modalCategory').val(),Description:$('#modalDescription').val(),Link:$('#modalLink').val()||''};
+        try{ if(editDocId) await updateDoc(doc(db,'updates',editDocId),entry); else await addDoc(updatesCollection,entry);}catch(e){alert(e);}finally{closeModal();}
       });
 
-      // Real-time listener
-      onSnapshot(q, snap => {
-        table.clear();
-        snap.forEach(docSnap => {
-          const raw = docSnap.data();
-          const d = { ...raw, id: docSnap.id };
-          table.row.add(d);
-        });
-        table.draw();
-        updateCategoryList();
-        toggleAuthUI(!!auth.currentUser);
-      });
+      // Table actions
+      $('#dataTable tbody').on('click','.edit-btn',function(){ if(!auth.currentUser) return alert('Sign in to edit'); const d=table.row($(this).parents('tr')).data(); openModal(true,d); });
+      $('#dataTable tbody').on('click','.remove-btn',async function(){ if(!auth.currentUser) return alert('Sign in to remove'); const d=table.row($(this).parents('tr')).data(); try{await deleteDoc(doc(db,'updates',d.id));}catch(e){alert(e);} });
 
-      // Handle add/edit form submit
-      $('#addForm').on('submit', async e => {
-        e.preventDefault();
-        const entry = {
-          Date:        $('#date').val(),
-          Topic:       $('#category').val(),
-          Description: $('#description').val(),
-          Link:        $('#link').val() || ''
-        };
-        try {
-          if (editDocId) {
-            await updateDoc(doc(db, 'updates', editDocId), entry);
-            editDocId = null;
-            $('#submitBtn').text('Add Entry');
-            $('#cancelEditBtn').hide();
-          } else {
-            await addDoc(updatesCollection, entry);
-          }
-          $('#addForm')[0].reset();
-        } catch(err) {
-          alert('Error saving entry: ' + err);
-        }
-      });
-
-      // Cancel edit
-      $('#cancelEditBtn').on('click', () => {
-        editDocId = null;
-        $('#submitBtn').text('Add Entry');
-        $('#cancelEditBtn').hide();
-        $('#addForm')[0].reset();
-      });
-
-      // Edit button
-      $('#dataTable tbody').on('click', '.edit-btn', function() {
-        if (!auth.currentUser) return alert('Please sign in to edit entries.');
-        const data = table.row($(this).parents('tr')).data();
-        editDocId = data.id;
-        $('#date').val(data.Date);
-        $('#category').val(data.Topic);
-        $('#description').val(data.Description);
-        $('#link').val(data.Link);
-        $('#submitBtn').text('Save Changes');
-        $('#cancelEditBtn').show();
-      });
-
-      // Remove button
-      $('#dataTable tbody').on('click', '.remove-btn', async function() {
-        if (!auth.currentUser) return alert('Please sign in to remove entries.');
-        const data = table.row($(this).parents('tr')).data();
-        try {
-          await deleteDoc(doc(db, 'updates', data.id));
-        } catch(err) {
-          alert('Error removing entry: ' + err);
-        }
-      });
-
-      // Login via form submit (Enter key)
-      $('#loginForm').on('submit', async e => {
-        e.preventDefault();
-        const email = $('#email').val();
-        const pwd   = $('#password').val();
-        if (!email.endsWith('@ynap.com')) return alert('Please use your @ynap.com email.');
-        try {
-          await signInWithEmailAndPassword(auth, email, pwd);
-        } catch(err) {
-          alert('Login failed: ' + err.message);
-        }
-      });
-
-      // Logout
-      $('#logoutBtn').on('click', () => signOut(auth));
-
-      // Auth state listener
-      onAuthStateChanged(auth, user => toggleAuthUI(!!user));
+      // Auth
+      $('#loginForm').on('submit',async e=>{e.preventDefault();const email=$('#email').val(),pwd=$('#password').val();if(!email.endsWith('@ynap.com'))return alert('Use @ynap.com');try{await signInWithEmailAndPassword(auth,email,pwd);}catch(e){alert(e.message);} });
+      $('#logoutBtn').on('click',()=>signOut(auth));
+      onAuthStateChanged(auth,user=>toggleAuthUI(!!user));
     });
   </script>
 </body>
