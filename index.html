@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Secure Interactive Database</title>
+  <title>Update Tracker</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css" />
   <style>
     body {
@@ -20,40 +20,51 @@
       margin-left: 10px;
       padding: 5px;
     }
-    .remove-btn {
-      color: red;
-      cursor: pointer;
-      margin: 0 5px;
-    }
-    .edit-btn {
-      color: blue;
-      cursor: pointer;
-      margin: 0 5px;
-    }
-    td .edit-btn,
-    td .remove-btn {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    }
-
     .requires-auth {
       display: none;
     }
-
-    /* NEW: Top bar for button + search */
-    #topBar {
+    /* Table Controls */
+    
+    #tableControls {
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
-      margin-bottom: 10px;
+      gap: 12px;
+      margin: 10px 0;
     }
-    /* remove extra margin around the built-in filter */
-    #topBar .dataTables_filter {
-      margin: 0;
+    #tableControls input {
+      width: 200px;
+      padding: 6px;
+      font-size: 14px;
+    }
+    #tableControls button {
+      background: none;
+      border: none;
+      cursor: pointer;
       padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+    #tableControls input[type="search"],
+#authSection input[type="email"],
+#authSection input[type="password"] {
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font-size: 14px; /* match font size for consistency */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#tableControls input[type="search"]:focus,
+#authSection input[type="email"]:focus,
+#authSection input[type="password"]:focus {
+  outline: none;
+  border-color: #888;
+  box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  border-radius: 12px;
+}
 
     /* Modal styles */
     #modalOverlay {
@@ -73,31 +84,34 @@
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
     }
-    #modal input {
+    #modal input,
+    #modal textarea {
       display: block;
       width: 100%;
       margin-bottom: 10px;
       padding: 5px;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    #modal textarea {
+      resize: vertical;
+      min-height: 80px;
     }
     #modal button {
       margin-right: 10px;
       padding: 5px 10px;
     }
-    #modal input[type="date"],
-    #modal input[list],
-    #modal input[type="url"],
-    #modal textarea {
-    width: 100%;
-    box-sizing: border-box;
-    margin-bottom: 10px;
-    padding: 5px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
+    #dataTable {
+      background-color: #fafafa; /* very light gray for a soft look */
+      border-radius: 12px;       /* optional: round the table corners */
+      padding: 10px;             /* optional: add some inner spacing */
     }
-
-    #modal textarea {
-    resize: vertical;
-    min-height: 80px; /* optional for default height */
+    /* Highlight pinned rows */
+    #dataTable tbody tr {
+      transition: background-color 0.3s, font-weight 0.3s;
+      position: relative;
+      overflow: visible;
     }
   </style>
 </head>
@@ -109,32 +123,38 @@
       <input type="email" id="email" placeholder="you@ynap.com" required />
       <input type="password" id="password" placeholder="Password" required />
       <button type="submit" id="loginBtn">Login</button>
-      <button type="button" id="logoutBtn" style="display:none;">Logout</button>
     </form>
+    <div id="welcomeContainer" style="display:none; align-items: center;">
+      <span id="welcomeMessage" style="margin-right: 10px; font-size: 16px;"></span>
+      <button type="button" id="logoutBtn">Logout</button>
+    </div>
   </div>
 
-  <!-- TOP BAR: Add Entry + (DataTables search will go here) -->
-  <div id="topBar">
-    <button id="addEntryBtn" class="requires-auth" title="Add Entry" style="background:none; border:none; padding:0; cursor:pointer;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 11.08V8l-6-6H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h6"/>
-          <path d="M14 3v5h5M18 21v-6M15 18h6"/>
-        </svg>
-      </button>
-      
-    <!-- DataTables will inject its filter input here -->
+  <!-- Centered Search & Add Entry -->
+  <div id="tableControls">
+    <input type="search" id="tableSearch" placeholder="Search…" />
+    <button id="addEntryBtn" class="requires-auth" title="Add Entry">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+           viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 11.08V8l-6-6H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h6"/>
+        <path d="M14 3v5h5M18 21v-6M15 18h6"/>
+      </svg>
+    </button>
   </div>
 
-  <!-- DATA TABLE (no pagination, always visible) -->
+  <!-- DATA TABLE WITH HIDDEN PINNED COLUMN -->
   <table id="dataTable" class="display" style="width:100%;">
     <thead>
       <tr>
+        <th style="display:none">Pinned</th>
         <th>Date</th>
         <th>Topic</th>
         <th>Description</th>
-        <th></th> <!-- Link icon col -->
-        <th></th> <!-- Edit icon col -->
-        <th></th> <!-- Remove icon col -->
+        <th></th> <!-- Link -->
+        <th></th> <!-- Edit -->
+        <th></th> <!-- Pin -->
+        <th></th> <!-- Delete -->
       </tr>
     </thead>
     <tbody></tbody>
@@ -149,6 +169,7 @@
       <datalist id="categories"></datalist>
       <textarea id="modalDescription" placeholder="Description" required></textarea>
       <input type="url" id="modalLink" placeholder="Link" />
+      <input type="color" id="modalColor" required value="#ffffff" />
       <button id="modalSubmit">Submit</button>
       <button id="modalCancel">Cancel</button>
     </div>
@@ -160,37 +181,32 @@
 
   <!-- Firebase Modular SDK -->
   <script type="module">
-    import { initializeApp }        from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore,
-             collection,
-             addDoc,
-             onSnapshot,
-             query,
-             orderBy,
-             doc,
-             deleteDoc,
-             getDocs,
-             updateDoc }         from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-    import { getAuth,
-             signInWithEmailAndPassword,
-             onAuthStateChanged,
-             signOut }            from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, onSnapshot, query, orderBy,
+      doc, deleteDoc, getDocs, updateDoc
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import {
+      getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCP0E5xBBzihujcQC4fmPblK-frZ3_wZiw",
       authDomain: "updates-9255b.firebaseapp.com",
       projectId: "updates-9255b",
-      storageBucket: "updates-9255b.firebasestorage.app",
+      storageBucket: "updates-9255b.appspot.com",
       messagingSenderId: "171550583463",
       appId: "1:171550583463:web:c6c6ffdb410584a130c982",
       measurementId: "G-39G2BNV0M3"
     };
+
     const app  = initializeApp(firebaseConfig);
     const db   = getFirestore(app);
     const auth = getAuth(app);
     const updatesCollection = collection(db, "updates");
     const q = query(updatesCollection, orderBy("Date", "asc"));
-    let table; let editDocId = null;
+    let table, editDocId = null;
+    let topicColorMap = {};
 
     async function updateCategoryList() {
       const snap = await getDocs(updatesCollection);
@@ -208,13 +224,23 @@
     }
 
     function toggleAuthUI(isAuth) {
-      document.getElementById('logoutBtn').style.display = isAuth ? 'inline' : 'none';
-      document.getElementById('loginBtn').style.display  = isAuth ? 'none'  : 'inline';
-      $('.requires-auth').toggle(isAuth);
-      if (table) {
-        table.column(4).visible(isAuth);
-        table.column(5).visible(isAuth);
+      const welcomeContainer = document.getElementById('welcomeContainer');
+      const loginForm       = document.getElementById('loginForm');
+      const welcomeMsg      = document.getElementById('welcomeMessage');
+
+      if (isAuth && auth.currentUser) {
+        const email     = auth.currentUser.email;
+        const firstName = email.split('@')[0].split('.')[0];
+        const capitalized = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+        welcomeMsg.textContent = `Welcome back, ${capitalized}`;
+        loginForm.style.display       = 'none';
+        welcomeContainer.style.display = 'flex';
+      } else {
+        loginForm.style.display       = 'flex';
+        welcomeContainer.style.display = 'none';
       }
+      $('.requires-auth').toggle(isAuth);
+      if (table) table.columns.adjust().draw(false);
     }
 
     function openModal(edit = false, data = {}) {
@@ -224,6 +250,8 @@
       $('#modalCategory').val(data.Topic || '');
       $('#modalDescription').val(data.Description || '');
       $('#modalLink').val(data.Link || '');
+      const baseColor = topicColorMap[data.Topic] || '#ffffff';
+      $('#modalColor').val(edit ? (data.Color || baseColor) : baseColor);
       $('#modalOverlay').show();
     }
 
@@ -233,145 +261,155 @@
     }
 
     $(document).ready(function() {
-      // Initialize DataTable with custom dom to grab the filter element
       table = $('#dataTable').DataTable({
-        dom: '<"dataTablesTop"f>t',
+        dom: 't',
         paging: false,
         info: false,
         lengthChange: false,
         ordering: true,
         autoWidth: false,
         columnDefs: [
-        { orderable: true,  targets: [0, 1] },
-        { orderable: false, targets: [2, 3, 4, 5] },
-        { width: "10%", targets: 0 },
-        { width: "10%", targets: 1 },
-        { width: "65%", targets: 2 },
-        { width: "5%",  targets: 3, className: 'dt-center' },  // Center Link icon
-        { width: "5%",  targets: 4, className: 'dt-center' },
-        { width: "5%",  targets: 5, className: 'dt-center' }
+          { targets: 0, visible: false },
+          { orderable: false, targets: [3,4,5,6,7] },
+          { width: "5%",  targets: 1 },
+          { width: "10%", targets: 2 },
+          { width: "65%", targets: 3 },
+          { width: "5%",  targets: 4, className: 'dt-center' },
+          { width: "5%",  targets: 5, className: 'dt-center' },
+          { width: "5%",  targets: 6, className: 'dt-center' },
+          { width: "5%",  targets: 7, className: 'dt-center' }
         ],
         columns: [
-            { data: 'Date' },
-            { data: 'Topic' },
-            { data: 'Description' },
-            {
-            data: 'Link',
-            render: d => d ? `
-                <a href="${d}" target="_blank" title="View Link" style="display:inline-flex; align-items:center;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-                </a>
-            ` : ''
-            },
-            {
-            data: null,
-            defaultContent: `
-                <span class="edit-btn" title="Edit">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path>
-                    <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon>
-                </svg>
-                </span>
-            `
-            },
-            {
-            data: null,
-            defaultContent: `
-                <span class="remove-btn" title="Delete">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
-                </span>
-            `
-            }
-
+          { data: 'Pinned' },
+          { data: 'Date', render: d => { const [y,m,day] = d.split('-'); return `${m}/${day}/${y}` } },
+          { data: 'Topic' },
+          { data: 'Description' },
+          { data: 'Link', render: d => d ? `<a href="${d}" target="_blank" class="link-btn" title="View Link">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                   viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg></a>` : '' },
+          { data: null, defaultContent: `<span class="edit-btn requires-auth" title="Edit">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                   viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/>
+                <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"/>
+              </svg></span>` },
+          { data: null, defaultContent: `<span class="pin-btn requires-auth" title="Pin/Unpin">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                   fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11.5" cy="8.5" r="5.5"/><path d="M11.5 14v7"/>
+              </svg></span>` },
+          { data: null, defaultContent: `<span class="remove-btn requires-auth" title="Delete">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg></span>` }
         ],
-        order: [[0, 'asc']]
-        });
+        order: [[0,'desc'],[1,'desc']],
+        rowCallback: function(row, data) {
+          if (data.Color) {
+            // inset 5px wide colored bar on left
+            $(row).css('box-shadow', `inset 5px 0px 0px 0px ${data.Color}`);
+          } else {
+            $(row).css('box-shadow', '');
+          }
+        }
+      });
 
-      // Move the DataTable filter into our #topBar container
-      $('.dataTablesTop').appendTo('#topBar');
+      $('#tableSearch').on('keyup', () => table.search($('#tableSearch').val()).draw());
 
       onSnapshot(q, snap => {
-        table.clear();
+        const dataArr = [];
+        topicColorMap = {};
         snap.forEach(docSnap => {
-          const d = { ...docSnap.data(), id: docSnap.id };
-          table.row.add(d);
+          const d = docSnap.data();
+          dataArr.push({ ...d, id: docSnap.id });
+          if (d.Topic && d.Color) {
+            topicColorMap[d.Topic] = d.Color;
+          }
         });
+        table.clear();
+        dataArr.forEach(d => table.row.add(d));
         table.draw();
         updateCategoryList();
         toggleAuthUI(!!auth.currentUser);
+
+        $('#dataTable tbody tr').each(function() {
+          const rd = table.row(this).data();
+          if (rd && rd.Pinned) {
+            $(this).css({ 'background-color': '#e0e0e0' });
+          } else {
+            $(this).css({ 'background-color': '', 'font-weight': '' });
+          }
+        });
       });
 
       $('#addEntryBtn').on('click', () => openModal());
       $('#modalCancel').on('click', closeModal);
 
       $('#modalSubmit').on('click', async () => {
-        const DateVal = $('#modalDate').val().trim();
-        const TopicVal = $('#modalCategory').val().trim();
-        const DescVal  = $('#modalDescription').val().trim();
-        const LinkVal  = $('#modalLink').val().trim();
-
-        if (!DateVal || !TopicVal || !DescVal) {
-            alert("Please fill in Date, Topic, and Description.");
-            return;
-        }
-
         const entry = {
-            Date: DateVal,
-            Topic: TopicVal,
-            Description: DescVal,
-            Link: LinkVal || ''
+          Date:        $('#modalDate').val().trim(),
+          Topic:       $('#modalCategory').val().trim(),
+          Description: $('#modalDescription').val().trim(),
+          Link:        $('#modalLink').val().trim(),
+          Pinned:      false,
+          Color:       $('#modalColor').val()
         };
-
-        try {
-            if (editDocId) {
-            await updateDoc(doc(db, 'updates', editDocId), entry);
-            } else {
-            await addDoc(updatesCollection, entry);
-            }
-        } catch (e) {
-            alert(e.message || e);
-        } finally {
-            closeModal();
+        if (!entry.Date || !entry.Topic || !entry.Description) {
+          return alert("Please fill in Date, Topic, and Description.");
         }
-        });
+        try {
+          if (editDocId) await updateDoc(doc(db, 'updates', editDocId), entry);
+          else           await addDoc(updatesCollection, entry);
+        } catch (e) {
+          alert(e.message || e);
+        } finally {
+          closeModal();
+        }
+      });
 
       $('#dataTable tbody').on('click', '.edit-btn', function() {
         if (!auth.currentUser) return alert('Sign in to edit');
-        const data = table.row($(this).parents('tr')).data();
-        openModal(true, data);
+        openModal(true, table.row($(this).closest('tr')).data());
       });
 
       $('#dataTable tbody').on('click', '.remove-btn', async function() {
         if (!auth.currentUser) return alert('Sign in to remove');
-        const data = table.row($(this).parents('tr')).data();
-        try {
-          await deleteDoc(doc(db, 'updates', data.id));
-        } catch (e) {
-          alert(e);
-        }
+        const data = table.row($(this).closest('tr')).data();
+        try { await deleteDoc(doc(db, 'updates', data.id)); }
+        catch (e) { alert(e); }
+      });
+
+      $('#dataTable tbody').on('click', '.pin-btn', async function() {
+        if (!auth.currentUser) return alert('Sign in to pin/unpin');
+        const data = table.row($(this).closest('tr')).data();
+        try { await updateDoc(doc(db, 'updates', data.id), { Pinned: !data.Pinned }); }
+        catch (e) { alert(e.message || e); }
       });
 
       $('#loginForm').on('submit', async e => {
         e.preventDefault();
         const email = $('#email').val(), pwd = $('#password').val();
         if (!email.endsWith('@ynap.com')) return alert('Use @ynap.com');
-        try {
-          await signInWithEmailAndPassword(auth, email, pwd);
-        } catch (e) {
-          alert(e.message);
-        }
+        try { await signInWithEmailAndPassword(auth, email, pwd); }
+        catch (e) { alert(e.message); }
       });
 
       $('#logoutBtn').on('click', () => signOut(auth));
       onAuthStateChanged(auth, user => toggleAuthUI(!!user));
+
+      // auto-update color picker on topic input
+      $('#modalCategory').on('input', function() {
+        const t = this.value.trim();
+        $('#modalColor').val(topicColorMap[t] || '#ffffff');
+      });
     });
   </script>
 </body>
