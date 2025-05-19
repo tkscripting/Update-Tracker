@@ -1,0 +1,128 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 30px;
+  position: relative;
+}
+#authSection {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+#authSection input,
+#authSection button {
+  margin-left: 10px;
+  padding: 5px;
+}
+.requires-auth {
+  display: none;
+}
+.link-btn,
+.edit-btn,
+.pin-btn,
+.remove-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+}
+#tableControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+}
+#tableControls input {
+  width: 200px;
+  padding: 6px;
+  font-size: 14px;
+}
+#tableControls select {
+  width: 140px;    /* adjust as you like */
+}
+#tableControls button#addEntryBtn,
+#tableControls button#resetBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#tableControls select,
+#tableControls input[type="search"],
+#authSection input[type="email"],
+#authSection input[type="password"] {
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font-size: 14px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+#tableControls input[type="search"]:focus,
+#authSection input[type="email"]:focus,
+#authSection input[type="password"]:focus {
+  outline: none;
+  border-color: #888;
+  box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  border-radius: 12px;
+}
+#modalOverlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+}
+#modal {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+#modal input,
+#modal textarea {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 5px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+#modal textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+#modal button {
+  margin-right: 10px;
+  padding: 5px 10px;
+}
+#dataTable {
+  background-color: #fafafa;
+  border-radius: 12px;
+  padding: 0 10px 10px 10px;
+}
+#dataTable tbody tr {
+  transition: background-color 0.3s, font-weight 0.3s;
+  position: relative;
+  overflow: visible;
+}
+#dataTable tbody tr.newest-subtopic {
+  background-color: rgba(255, 229, 180, 0.25);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+tr.pinned-row {
+  font-weight: bold;
+}
