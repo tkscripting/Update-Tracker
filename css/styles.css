@@ -1,0 +1,326 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 30px;
+  position: relative;
+}
+#logoContainer {
+  text-align: center;
+  margin-bottom: 10px;
+}
+#dailyLogo {
+  max-height: 80px;
+  object-fit: contain;
+}
+#authSection {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  gap: 8px;
+  position: relative;
+}
+#authSection button {
+  height: 32px;
+  padding: 0px;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+#loginForm,
+#welcomeContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#loginForm.hidden,
+#welcomeContainer.hidden {
+  display: none;
+}
+.requires-auth {
+  display: none;
+}
+#colorModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  z-index: 2000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#colorModal {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 250px;
+  max-width: 90%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2001;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+#colorWheelStandalone {
+  margin-bottom: 10px;
+}
+
+#closeColorModal {
+  margin-top: 10px;
+  padding: 5px 10px;
+}
+
+.link-btn,
+.edit-btn,
+.pin-btn,
+.remove-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+}
+#tableControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+}
+#tableControls input {
+  width: 200px;
+  padding: 6px;
+  font-size: 14px;
+}
+#tableControls select {
+  width: 140px;
+}
+#tableControls button#addEntryBtn,
+#tableControls button#resetBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#tableControls select,
+#tableControls input[type="date"],
+#tableControls input[type="search"],
+#authSection input[type="email"],
+#authSection input[type="password"] {
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  font-size: 14px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+#tableControls input[type="date"] {
+  width: 140px;
+}
+#tableControls input[type="search"]:focus,
+#authSection input[type="email"]:focus,
+#authSection input[type="password"]:focus {
+  outline: none;
+  border-color: #888;
+  box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  border-radius: 12px;
+}
+#modalOverlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+}
+#modal {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+#modal input,
+#modal textarea {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 5px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+#modal textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+#modal button {
+  margin-right: 10px;
+  padding: 5px 10px;
+}
+#dataTable {
+  background-color: #fafafa;
+  border-radius: 12px;
+  padding: 0 10px 10px 10px;
+}
+#dataTable tbody tr {
+  transition: background-color 0.3s, font-weight 0.3s;
+  position: relative;
+  overflow: visible;
+}
+#dataTable tbody tr.newest-subtopic {
+  background-color: rgba(232, 217, 164, 0.25);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+tr.pinned-row {
+  font-weight: bold;
+}
+@keyframes tableGlitch {
+  0%   { transform: skewX(0deg); }
+  20%  { transform: skewX(5deg); }
+  40%  { transform: skewX(-5deg); }
+  60%  { transform: skewX(3deg); }
+  80%  { transform: skewX(-3deg); }
+  100% { transform: skewX(0deg); }
+}
+#dataTable.glitch tbody tr {
+  animation: tableGlitch 0.5s ease-in-out;
+}
+/* ── Dark Mode ── */
+.dark-mode {
+  background: #2e2e2e;
+  color: #e0e0e0;
+}
+.dark-mode body {
+  background: #2e2e2e;
+}
+.dark-mode #dataTable {
+  background: #383838;
+  border-radius: 12px;
+}
+.dark-mode .dataTables_wrapper,
+.dark-mode .dataTables_wrapper .dataTables_scroll {
+  background: #383838;
+}
+.dark-mode input,
+.dark-mode select,
+.dark-mode textarea {
+  background: #3a3a3a;
+  color: #e0e0e0;
+  border-color: #555;
+}
+.dark-mode input:focus,
+.dark-mode select:focus,
+.dark-mode textarea:focus {
+  border-color: #888;
+  box-shadow: 0 0 5px rgba(224,224,224,0.2);
+}
+.dark-mode .dataTables_wrapper,
+.dark-mode .dataTables_wrapper .dataTables_scroll {
+  background: #333;
+}
+.dark-mode table.display {
+  background: #333;
+}
+.dark-mode #modal {
+  background: #3a3a3a;
+  color: #e0e0e0;
+}
+.dark-mode #modal input,
+.dark-mode #modal textarea {
+  background: #4a4a4a;
+  color: #e0e0e0;
+  border-color: #666;
+}
+.dark-mode #modal button {
+  background: #555;
+  color: #e0e0e0;
+  border: 1px solid #666;
+}
+.dark-mode .requires-auth svg path {
+  stroke: #e0e0e0;
+}
+.dark-mode input,
+.dark-mode select,
+.dark-mode textarea,
+.dark-mode #modal,
+.dark-mode .dataTables_wrapper,
+.dark-mode table.display {
+  border-radius: 12px !important;
+}
+.dark-mode svg path,
+.dark-mode svg circle,
+.dark-mode svg polygon,
+.dark-mode svg line,
+.dark-mode svg polyline {
+  stroke: #ffffff !important;
+}
+/* ── Color Picker Styling ── */
+#colorBarPreview {
+  width: 100%;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  margin-bottom: 10px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+#colorWheelContainer {
+  margin-top: 10px;
+  display: none;
+  transition: all 0.2s ease;
+}
+.dark-mode #colorBarPreview {
+  border-color: #555;
+}
+.dark-mode #colorModal {
+  background: #3a3a3a;
+  color: #e0e0e0;
+}
+/* Neutral default for link icons */
+.link-btn svg {
+  color: #333;
+}
+.link-btn:visited svg {
+  color: #333;
+}
+
+/* Hover: soft distinct colors by purpose */
+.link-btn:hover svg       { color: #64b5f6; }   
+.edit-btn:hover svg       { color: #81da87; }   
+.pin-btn:hover svg        { color: #ba68c8; }  
+.remove-btn:hover svg     { color: #e57373; }  
+.reset-btn:hover svg      { stroke: #e57373; }  
+
+#addEntryBtn:hover svg path   { stroke: #81da87; }  
+#loginBtn:hover svg path      { stroke: #64b5f6; } 
+#logoutBtn:hover svg path     { stroke: #e57373; }  
+
+svg {
+  transition: color 0.2s ease;
+}
+svg path,
+svg line,
+svg circle,
+svg polyline,
+svg polygon {
+  transition: stroke 0.2s ease;
+}
