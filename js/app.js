@@ -54,7 +54,7 @@ async function updateCategoryList() {
 
   // — Populate filter selects (unchanged) —
   const topicFilter = document.getElementById('filterTopic');
-  topicFilter.innerHTML = '<option value="">All Categories</option>';
+  topicFilter.innerHTML = '<option value="">All Topics</option>';
   topics.forEach(t => {
     const opt = document.createElement('option');
     opt.value = t; opt.textContent = t;
@@ -63,7 +63,7 @@ async function updateCategoryList() {
 
   const subFilter = document.getElementById('filterSubtopic');
   function fillFilterSubs(list) {
-    subFilter.innerHTML = '<option value="">All Subcategories</option>';
+    subFilter.innerHTML = '<option value="">All Subtopics</option>';
     list.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s; opt.textContent = s;
