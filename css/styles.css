@@ -103,7 +103,7 @@ body {
   font-size: 14px;
 }
 #tableControls select {
-  width: 140px;
+  width: 150px;
 }
 #tableControls button#addEntryBtn,
 #tableControls button#resetBtn {
