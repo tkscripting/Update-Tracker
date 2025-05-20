@@ -54,10 +54,10 @@
     <input type="date" id="startDate" title="Start Date" />
     <input type="date" id="endDate" title="End Date" />
     <select id="filterTopic">
-    <option value="">All Categories</option>
+    <option value="">All Topics</option>
     </select>
     <select id="filterSubtopic">
-    <option value="">All Subcategories</option>
+    <option value="">All Subtopics</option>
     </select>
 
     <!-- Search -->
@@ -81,7 +81,7 @@
       <tr>
         <th style="display:none">Pinned</th>
         <th>Date</th>
-        <th>Category</th>
+        <th>Topic</th>
         <th>Description</th>
         <th></th>
         <th></th>
@@ -98,12 +98,10 @@
     <label for="modalDate">Date</label>
     <input type="date" id="modalDate">
 
-    <!-- ── Replace the old Topic input with: ── -->
     <label for="modalCategory">Topic</label>
     <input id="modalCategory" list="topicsList" type="text" placeholder="Select or type…">
     <datalist id="topicsList"></datalist>
 
-    <!-- ── Replace the old Subtopic input with: ── -->
     <label for="modalSubtopic">Subtopic</label>
     <input id="modalSubtopic" list="subtopicsList" type="text" placeholder="Select or type…">
     <datalist id="subtopicsList"></datalist>
