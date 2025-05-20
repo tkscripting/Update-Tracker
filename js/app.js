@@ -10,7 +10,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 firebase.auth().onAuthStateChanged((user) => {
-  console.log("My UID:", user.uid); // Copy this for exclusion
+  console.log("My UID:", user.uid);
 });
 const db = firebase.firestore();
 const auth = firebase.auth();
@@ -282,7 +282,7 @@ $(function(){
         render: d => {
           const display = d.Subtopic || d.Topic;
           const topic = d.Topic || '';
-          return `<span title="Category: ${topic}">${display}</span>`;
+          return `<span title="Topic: ${topic}">${display}</span>`;
         }
       },
       { data: 'Description' },
