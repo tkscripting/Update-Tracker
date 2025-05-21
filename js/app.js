@@ -16,22 +16,6 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 const updatesCollection = db.collection("updates");
 
-function typeWriter(element, text, speed = 75, callback) {
-  let i = 0;
-  element.text('');
-  function type() {
-    if (i < text.length) {
-      element.append(text.charAt(i));
-      i++;
-      setTimeout(type, speed);
-    } else {
-      if (callback) callback();
-    }
-  }
-  type();
-}
-
-
 let table, editDocId = null;
 let topicColorMap = {};
 
@@ -118,28 +102,20 @@ function toggleAuthUI(isAuth) {
 
   if (isAuth && auth.currentUser) {
     const email = auth.currentUser.email;
-    const firstName = email.split('@')[0].split('.')[0];
-    const capitalized = firstName.charAt(0).toUpperCase() + firstName.slice(1);
-    const msg = `Welcome back, ${capitalized}`;
-
-    // If welcomeTyped flag NOT set, do typewriter effect
-    if (!sessionStorage.getItem('welcomeTyped')) {
-      typeWriter(welcomeMsg, msg, 75, () => {
-        sessionStorage.setItem('welcomeTyped', 'true');
-      });
-    } else {
-      // Already typed, just set text directly
-      welcomeMsg.text(msg);
-    }
-
-    loginForm.hide();
-    welcomeContainer.show().css('align-items', 'center');
+    const name = email.split('@')[0].split('.')[0];
+    const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
+  
+    $('#welcomeMessage').text(`Welcome back, ${capitalized}!`);
+    $('#loginForm').hide();
+    $('#welcomeContainer').show().css('align-items', 'center');
   } else {
-    loginForm.show();
-    welcomeContainer.hide();
-    // Reset flag on logout so next login animates again
-    sessionStorage.removeItem('welcomeTyped');
+    $('#loginForm').show();
+    $('#welcomeContainer').hide();
   }
+  
+  $('.requires-auth').toggle(isAuth);
+  if (table) table.columns.adjust().draw(false);
+  
 
   $('.requires-auth').toggle(isAuth);
   if (table) table.columns.adjust().draw(false);
@@ -228,6 +204,25 @@ function highlightNewestPerSubtopic() {
     $(item.row).addClass('newest-subtopic');
   });
 }
+
+function observeFadeInRows() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('fade-in-up');
+        observer.unobserve(entry.target); // only animate once
+      }
+    });
+  }, {
+    threshold: 0.1
+  });
+
+  document.querySelectorAll('#dataTable tbody tr').forEach(row => {
+    row.classList.remove('fade-in-up'); // reset on redraw
+    observer.observe(row);
+  });
+}
+
 
 $.fn.dataTable.ext.order['date-with-timestamp'] = function(settings, colIndex) {
   return this.api().column(colIndex, { order: 'index' }).nodes().map(function(td, i) {
@@ -357,9 +352,11 @@ $('#resetBtn').on('click', function () {
     highlightNewestPerSubtopic();
   });
 
-  table.on('draw', highlightNewestPerSubtopic);
-
-
+  table.on('draw', function () {
+    highlightNewestPerSubtopic();
+    observeFadeInRows(); // animate rows
+  });
+  
   $('#addEntryBtn').click(()=>openModal());
   $('#modalCancel').click(closeModal);
   $('#modalOverlay').on('click', function(e) {
